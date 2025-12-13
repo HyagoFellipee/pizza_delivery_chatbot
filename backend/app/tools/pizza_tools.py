@@ -38,16 +38,16 @@ def create_pizza_tools(session: AsyncSession):
             pizza = await pizza_service.get_pizza_by_name(pizza_name)
 
             if pizza:
-                return f"The {pizza.name} costs ${pizza.price:.2f}. Ingredients: {pizza.ingredients}"
+                return f"A pizza {pizza.name} custa R$ {pizza.price:.2f}. Ingredientes: {pizza.ingredients}"
             else:
                 # Try to list similar pizzas
                 all_pizzas = await pizza_service.get_all_pizzas()
                 pizza_names = [p.name for p in all_pizzas]
-                return f"Sorry, I couldn't find a pizza called '{pizza_name}'. Available pizzas: {', '.join(pizza_names)}"
+                return f"Desculpe, não encontrei uma pizza chamada '{pizza_name}'. Pizzas disponíveis: {', '.join(pizza_names)}"
 
         except Exception as e:
             logger.error(f"Error getting pizza price: {e}")
-            return f"Sorry, I encountered an error while looking up the pizza price."
+            return f"Desculpe, encontrei um erro ao buscar o preço da pizza."
 
     @tool
     async def list_all_pizzas() -> str:
@@ -61,17 +61,17 @@ def create_pizza_tools(session: AsyncSession):
             all_pizzas = await pizza_service.get_all_pizzas()
 
             if not all_pizzas:
-                return "Sorry, no pizzas are currently available."
+                return "Desculpe, não há pizzas disponíveis no momento."
 
             pizza_list = "\n".join([
-                f"- {pizza.name}: ${pizza.price:.2f}"
+                f"- {pizza.name}: R$ {pizza.price:.2f}"
                 for pizza in all_pizzas
             ])
 
-            return f"Here are our available pizzas:\n{pizza_list}"
+            return f"Aqui estão nossas pizzas disponíveis:\n{pizza_list}"
 
         except Exception as e:
             logger.error(f"Error listing pizzas: {e}")
-            return "Sorry, I encountered an error while fetching the pizza list."
+            return "Desculpe, encontrei um erro ao buscar a lista de pizzas."
 
     return [get_pizza_price, list_all_pizzas]

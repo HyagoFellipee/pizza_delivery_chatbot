@@ -13,54 +13,54 @@ logger = logging.getLogger(__name__)
 
 SEED_PIZZAS: List[dict] = [
     {
-        "name": "Margherita Classica",
-        "ingredients": "tomato sauce, mozzarella, fresh basil, olive oil",
-        "price": 12.99
+        "name": "Margherita",
+        "ingredients": "molho de tomate, mussarela, manjericão fresco, azeite",
+        "price": 35.90
     },
     {
-        "name": "Pepperoni Supreme",
-        "ingredients": "tomato sauce, mozzarella, pepperoni, oregano",
-        "price": 14.99
+        "name": "Calabresa",
+        "ingredients": "molho de tomate, mussarela, calabresa, cebola, azeitonas",
+        "price": 39.90
     },
     {
-        "name": "Quattro Formaggi",
-        "ingredients": "mozzarella, gorgonzola, parmesan, fontina cheese",
-        "price": 16.99
+        "name": "Quatro Queijos",
+        "ingredients": "mussarela, gorgonzola, parmesão, provolone",
+        "price": 45.90
     },
     {
-        "name": "Vegetariana Deluxe",
-        "ingredients": "tomato sauce, mozzarella, bell peppers, mushrooms, onions, olives, tomatoes",
-        "price": 15.99
+        "name": "Portuguesa",
+        "ingredients": "molho de tomate, mussarela, presunto, ovos, cebola, azeitonas, ervilha",
+        "price": 42.90
     },
     {
-        "name": "Hawaiian Paradise",
-        "ingredients": "tomato sauce, mozzarella, ham, pineapple",
-        "price": 13.99
+        "name": "Frango com Catupiry",
+        "ingredients": "molho de tomate, mussarela, frango desfiado, catupiry",
+        "price": 43.90
     },
     {
-        "name": "BBQ Chicken Feast",
-        "ingredients": "BBQ sauce, mozzarella, grilled chicken, red onions, cilantro",
-        "price": 17.99
+        "name": "Bacon",
+        "ingredients": "molho de tomate, mussarela, bacon, cebola",
+        "price": 41.90
     },
     {
-        "name": "Meat Lovers Special",
-        "ingredients": "tomato sauce, mozzarella, pepperoni, sausage, bacon, ham",
-        "price": 18.99
+        "name": "Vegetariana",
+        "ingredients": "molho de tomate, mussarela, pimentão, champignon, cebola, azeitonas, tomate",
+        "price": 40.90
     },
     {
-        "name": "Mediterranean Dream",
-        "ingredients": "tomato sauce, mozzarella, feta cheese, olives, sun-dried tomatoes, artichokes",
-        "price": 16.49
+        "name": "Napolitana",
+        "ingredients": "molho de tomate, mussarela, tomate fresco, parmesão, manjericão",
+        "price": 38.90
     },
     {
-        "name": "Spicy Diavola",
-        "ingredients": "tomato sauce, mozzarella, spicy salami, hot peppers, chili flakes",
-        "price": 15.49
+        "name": "Lombo Canadense",
+        "ingredients": "molho de tomate, mussarela, lombo canadense, catupiry",
+        "price": 44.90
     },
     {
-        "name": "Truffle Mushroom Gourmet",
-        "ingredients": "white sauce, mozzarella, mixed mushrooms, truffle oil, parmesan",
-        "price": 19.99
+        "name": "Especial da Casa",
+        "ingredients": "molho de tomate, mussarela, calabresa, bacon, champignon, milho, azeitonas",
+        "price": 47.90
     }
 ]
 

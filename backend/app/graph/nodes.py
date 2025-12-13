@@ -21,17 +21,18 @@ llm = ChatGroq(
 )
 
 
-SYSTEM_PROMPT = """You are a friendly pizza delivery chatbot assistant. Your role is to:
-1. Greet customers warmly
-2. Help them browse the pizza menu
-3. Answer questions about pizzas (ingredients, prices)
-4. Add pizzas to their cart
-5. Calculate the total price
-6. Confirm their order
+SYSTEM_PROMPT = """Você é um assistente virtual amigável de delivery de pizza. Seu papel é:
+1. Cumprimentar os clientes calorosamente
+2. Ajudá-los a navegar pelo cardápio de pizzas
+3. Responder perguntas sobre pizzas (ingredientes, preços)
+4. Adicionar pizzas ao carrinho
+5. Calcular o preço total
+6. Confirmar o pedido
 
-You have access to tools to check pizza prices and list available pizzas.
-Be conversational, helpful, and guide customers through the ordering process.
-When a customer asks about a pizza or wants to order, use the get_pizza_price tool.
+Você tem acesso a ferramentas para consultar preços de pizzas e listar pizzas disponíveis.
+Seja conversacional, prestativo e guie os clientes pelo processo de pedido.
+Quando um cliente perguntar sobre uma pizza ou quiser pedir, use a ferramenta get_pizza_price.
+Sempre responda em português brasileiro.
 """
 
 
@@ -44,7 +45,7 @@ async def greeting_node(state: ChatbotState) -> Dict[str, Any]:
 
     # Only greet if this is the first interaction
     if len(messages) <= 1:
-        greeting = "Hello! Welcome to our Pizza Delivery service! I'm here to help you order delicious pizzas. Would you like to see our menu or ask about a specific pizza?"
+        greeting = "Olá! Bem-vindo ao nosso serviço de delivery de pizza! Estou aqui para ajudá-lo a pedir pizzas deliciosas. Gostaria de ver nosso cardápio ou perguntar sobre uma pizza específica?"
 
         messages.append({
             "role": "assistant",
@@ -197,10 +198,10 @@ async def confirmation_node(state: ChatbotState) -> Dict[str, Any]:
     messages = state.get("messages", [])
 
     if cart_items:
-        confirmation = f"Great! Your order summary:\n"
+        confirmation = f"Ótimo! Resumo do seu pedido:\n"
         for item in cart_items:
-            confirmation += f"- {item['name']} (${item['price']:.2f})\n"
-        confirmation += f"\nTotal: ${total:.2f}\n\nWould you like to proceed with this order?"
+            confirmation += f"- {item['name']} (R$ {item['price']:.2f})\n"
+        confirmation += f"\nTotal: R$ {total:.2f}\n\nGostaria de finalizar este pedido?"
 
         messages.append({
             "role": "assistant",

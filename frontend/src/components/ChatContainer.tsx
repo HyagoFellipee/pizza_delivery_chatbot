@@ -17,7 +17,7 @@ export default function ChatContainer() {
   useEffect(() => {
     const initialMessage: Message = {
       role: 'assistant',
-      content: 'Hello! Welcome to our Pizza Delivery service! How can I help you today?',
+      content: 'Olá! Bem-vindo ao nosso serviço de delivery de pizza! Como posso ajudá-lo hoje?',
       timestamp: new Date(),
     }
     setMessages([initialMessage])
@@ -55,7 +55,7 @@ export default function ChatContainer() {
       console.error('Error sending message:', error)
       const errorMessage: Message = {
         role: 'assistant',
-        content: 'Sorry, I encountered an error. Please try again.',
+        content: 'Desculpe, encontrei um erro. Por favor, tente novamente.',
         timestamp: new Date(),
       }
       setMessages((prev) => [...prev, errorMessage])
@@ -68,9 +68,9 @@ export default function ChatContainer() {
     <div className="max-w-4xl mx-auto bg-white rounded-lg shadow-xl overflow-hidden">
       {/* Chat header */}
       <div className="bg-primary-600 text-white p-4">
-        <h2 className="text-xl font-semibold">Chat with Pizza Bot</h2>
+        <h2 className="text-xl font-semibold">Chat com o Pizza Bot</h2>
         {total > 0 && (
-          <p className="text-sm mt-1">Cart Total: ${total.toFixed(2)}</p>
+          <p className="text-sm mt-1">Total do Carrinho: R$ {total.toFixed(2)}</p>
         )}
       </div>
 
@@ -98,12 +98,12 @@ export default function ChatContainer() {
       {/* Cart summary */}
       {cartItems.length > 0 && (
         <div className="border-t p-4 bg-gray-50">
-          <h3 className="font-semibold mb-2">Your Cart:</h3>
+          <h3 className="font-semibold mb-2">Seu Carrinho:</h3>
           <ul className="text-sm space-y-1">
             {cartItems.map((item, index) => (
               <li key={index} className="flex justify-between">
                 <span>{item.name}</span>
-                <span>${item.price.toFixed(2)}</span>
+                <span>R$ {item.price.toFixed(2)}</span>
               </li>
             ))}
           </ul>
