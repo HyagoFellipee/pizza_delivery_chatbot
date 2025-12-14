@@ -3,7 +3,7 @@ LangGraph node functions for chatbot flow.
 """
 from typing import Dict, Any
 from langchain_groq import ChatGroq
-from langchain.schema import HumanMessage, AIMessage, SystemMessage
+from langchain_core.messages import HumanMessage, AIMessage, SystemMessage, ToolMessage
 import logging
 import json
 
@@ -43,8 +43,10 @@ async def greeting_node(state: ChatbotState) -> Dict[str, Any]:
     """
     messages = state.get("messages", [])
 
-    # Only greet if this is the first interaction
-    if len(messages) <= 1:
+    # Only greet if this is truly the first interaction (no messages OR only has one user message with no assistant responses)
+    has_assistant_message = any(msg.get("role") == "assistant" for msg in messages)
+
+    if not has_assistant_message and len(messages) == 1:
         greeting = "Olá! Bem-vindo ao nosso serviço de delivery de pizza! Estou aqui para ajudá-lo a pedir pizzas deliciosas. Gostaria de ver nosso cardápio ou perguntar sobre uma pizza específica?"
 
         messages.append({
@@ -75,26 +77,68 @@ async def llm_decision_node(state: ChatbotState, tools: list) -> Dict[str, Any]:
         if msg["role"] == "user":
             lc_messages.append(HumanMessage(content=msg["content"]))
         elif msg["role"] == "assistant":
-            lc_messages.append(AIMessage(content=msg["content"]))
+            tool_calls_data = msg.get("tool_calls")
+            if tool_calls_data:
+                # AIMessage with tool calls
+                lc_messages.append(AIMessage(
+                    content=msg.get("content", ""),
+                    tool_calls=tool_calls_data
+                ))
+            else:
+                # Regular AIMessage
+                lc_messages.append(AIMessage(content=msg["content"]))
+        elif msg["role"] == "tool":
+            # Tool result message
+            lc_messages.append(ToolMessage(
+                content=msg["content"],
+                tool_call_id=msg["tool_call_id"],
+                name=msg.get("name", "")
+            ))
+
+    # Log messages being sent
+    logger.info(f"Sending {len(lc_messages)} messages to LLM")
+    for i, msg in enumerate(lc_messages):
+        logger.info(f"Message {i}: {type(msg).__name__} - {msg.content[:100]}")
+
+    # Convert tools to format that Groq expects
+    from langchain_core.utils.function_calling import convert_to_openai_tool
+
+    tool_definitions = [convert_to_openai_tool(tool) for tool in tools]
+    logger.info(f"Tool definitions: {len(tool_definitions)} tools")
 
     # Bind tools to LLM
-    llm_with_tools = llm.bind_tools(tools)
+    llm_with_tools = llm.bind(tools=tool_definitions)
 
     # Get LLM response
     response = await llm_with_tools.ainvoke(lc_messages)
+
+    logger.info(f"LLM response type: {type(response)}, content: '{response.content}'")
 
     # Check if LLM wants to use a tool
     pending_tool_call = ""
     tool_result = ""
 
-    if response.tool_calls:
-        # LLM wants to use a tool
-        tool_call = response.tool_calls[0]
-        pending_tool_call = tool_call["name"]
+    # Check for tool calls - use getattr for compatibility
+    tool_calls = getattr(response, 'tool_calls', None) or []
+    logger.info(f"Tool calls detected: {tool_calls}")
 
-        logger.info(f"LLM requested tool: {pending_tool_call}")
+    if tool_calls:
+        # LLM wants to use a tool - preserve tool_calls information
+        logger.info(f"LLM requested tool: {tool_calls[0]['name']}")
+
+        messages.append({
+            "role": "assistant",
+            "content": response.content or "",  # Handle None content
+            "tool_calls": [{
+                "name": tc["name"],
+                "args": tc.get("args", {}),
+                "id": tc.get("id", "")
+            } for tc in tool_calls]
+        })
+        pending_tool_call = tool_calls[0]["name"]
     else:
         # Regular response
+        logger.info(f"Adding regular response to messages: '{response.content}'")
         messages.append({
             "role": "assistant",
             "content": response.content
@@ -118,35 +162,43 @@ async def tool_execution_node(state: ChatbotState, tools: list) -> Dict[str, Any
     Returns:
         Updated state with tool execution result
     """
-    pending_tool_call = state.get("pending_tool_call", "")
     messages = state.get("messages", [])
 
-    if not pending_tool_call:
+    # Get tool call information from last assistant message
+    last_message = messages[-1] if messages else {}
+    tool_calls_data = last_message.get("tool_calls", [])
+
+    if not tool_calls_data:
         return state
+
+    tool_call = tool_calls_data[0]
+    tool_name = tool_call["name"]
+    tool_args = tool_call.get("args", {})
+    tool_call_id = tool_call.get("id", "")
+
+    logger.info(f"Executing tool: {tool_name} with args: {tool_args}")
 
     # Find and execute the tool
     tool_result = "Tool not found"
 
     for tool in tools:
-        if tool.name == pending_tool_call:
-            # Extract tool arguments from last user message
-            user_message = messages[-1]["content"] if messages else ""
-
+        if tool.name == tool_name:
             try:
-                # Execute tool
-                result = await tool.ainvoke({"pizza_name": user_message})
+                # Execute tool with proper arguments
+                result = await tool.ainvoke(tool_args)
                 tool_result = result
-                logger.info(f"Tool {pending_tool_call} executed successfully")
+                logger.info(f"Tool {tool_name} executed successfully: {tool_result}")
             except Exception as e:
-                logger.error(f"Error executing tool {pending_tool_call}: {e}")
-                tool_result = f"Error executing tool: {str(e)}"
-
+                logger.error(f"Error executing tool {tool_name}: {e}")
+                tool_result = f"Erro ao executar ferramenta: {str(e)}"
             break
 
-    # Add tool result to messages
+    # Add ToolMessage to conversation
     messages.append({
-        "role": "assistant",
-        "content": tool_result
+        "role": "tool",
+        "content": tool_result,
+        "tool_call_id": tool_call_id,
+        "name": tool_name
     })
 
     return {

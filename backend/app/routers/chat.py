@@ -68,13 +68,29 @@ async def chat(
         # Run the graph
         final_state = await graph.ainvoke(initial_state)
 
-        # Extract response
-        assistant_messages = [
-            msg for msg in final_state.get("messages", [])
-            if msg.get("role") == "assistant"
-        ]
+        logger.info(f"Final state messages: {final_state.get('messages', [])}")
 
-        response_content = assistant_messages[-1]["content"] if assistant_messages else "I'm sorry, I couldn't process that request."
+        # Extract response - combine tool results and final assistant message
+        messages = final_state.get("messages", [])
+        response_parts = []
+
+        # Get messages after the last user message
+        for i, msg in enumerate(messages):
+            if msg.get("role") == "user" and msg["content"] == request.message:
+                # Found the user message, get everything after it
+                subsequent_messages = messages[i+1:]
+                for subsequent in subsequent_messages:
+                    if subsequent.get("role") == "tool":
+                        # Include tool results
+                        response_parts.append(subsequent["content"])
+                    elif subsequent.get("role") == "assistant" and subsequent.get("content"):
+                        # Include final assistant response
+                        response_parts.append(subsequent["content"])
+                break
+
+        response_content = "\n\n".join(response_parts) if response_parts else "Desculpe, não consegui processar sua mensagem."
+
+        logger.info(f"Response content: {response_content}")
 
         return ChatResponse(
             response=response_content,
