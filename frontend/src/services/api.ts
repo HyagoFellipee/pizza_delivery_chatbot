@@ -20,10 +20,17 @@ const apiClient: AxiosInstance = axios.create({
  * Send a chat message to the backend
  */
 export const sendChatMessage = async (
-  request: ChatRequest
+  request: ChatRequest,
+  currentCartItems?: any[],
+  currentTotal?: number
 ): Promise<ChatResponse> => {
   try {
-    const response = await apiClient.post<ChatResponse>('/api/chat', request)
+    const payload = {
+      ...request,
+      cart_items: currentCartItems || [],
+      total: currentTotal || 0.0
+    }
+    const response = await apiClient.post<ChatResponse>('/api/chat', payload)
     return response.data
   } catch (error) {
     console.error('Error sending chat message:', error)

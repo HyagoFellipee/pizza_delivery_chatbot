@@ -24,6 +24,8 @@ class ChatRequest(BaseModel):
     """Chat request payload"""
     message: str
     conversation_history: List[ChatMessage] = []
+    cart_items: List[Dict[str, Any]] = []
+    total: float = 0.0
 
 
 class ChatResponse(BaseModel):
@@ -52,11 +54,12 @@ async def chat(
         # Create chatbot graph
         graph = create_chatbot_graph(session)
 
-        # Prepare initial state
+        # Prepare initial state with cart from request
         initial_state = {
             "messages": [msg.dict() for msg in request.conversation_history],
-            "cart_items": [],
-            "total": 0.0
+            "cart_items": request.cart_items,
+            "total": request.total,
+            "processed_tool_count": 0
         }
 
         # Add user message
@@ -81,8 +84,11 @@ async def chat(
                 subsequent_messages = messages[i+1:]
                 for subsequent in subsequent_messages:
                     if subsequent.get("role") == "tool":
-                        # Include tool results
-                        response_parts.append(subsequent["content"])
+                        # Skip add_to_cart tool results (they're JSON for state_update_node)
+                        # Include other tool results (like pizza prices, lists)
+                        tool_name = subsequent.get("name", "")
+                        if tool_name != "add_to_cart":
+                            response_parts.append(subsequent["content"])
                     elif subsequent.get("role") == "assistant" and subsequent.get("content"):
                         # Include final assistant response
                         response_parts.append(subsequent["content"])

@@ -34,11 +34,11 @@ export default function ChatContainer() {
     setIsLoading(true)
 
     try {
-      // Send to backend
+      // Send to backend with current cart state
       const response = await sendChatMessage({
         message: content,
         conversation_history: messages,
-      })
+      }, cartItems, total)
 
       // Add assistant response
       const assistantMessage: Message = {
@@ -97,16 +97,24 @@ export default function ChatContainer() {
 
       {/* Cart summary */}
       {cartItems.length > 0 && (
-        <div className="border-t p-4 bg-gray-50">
-          <h3 className="font-semibold mb-2">Seu Carrinho:</h3>
-          <ul className="text-sm space-y-1">
+        <div className="border-t p-4 bg-gradient-to-r from-green-50 to-blue-50">
+          <h3 className="font-bold text-lg mb-3 text-gray-700">🛒 Seu Carrinho</h3>
+          <ul className="text-sm space-y-2">
             {cartItems.map((item, index) => (
-              <li key={index} className="flex justify-between">
-                <span>{item.name}</span>
-                <span>R$ {item.price.toFixed(2)}</span>
+              <li key={index} className="flex justify-between items-center bg-white px-3 py-2 rounded shadow-sm">
+                <span className="font-medium text-gray-700">
+                  {item.quantity}x {item.name}
+                </span>
+                <span className="font-semibold text-green-600">
+                  R$ {(item.price * item.quantity).toFixed(2)}
+                </span>
               </li>
             ))}
           </ul>
+          <div className="mt-3 pt-2 border-t border-gray-300 flex justify-between items-center">
+            <span className="font-bold text-gray-800">Total:</span>
+            <span className="font-bold text-xl text-green-600">R$ {total.toFixed(2)}</span>
+          </div>
         </div>
       )}
     </div>

@@ -21,18 +21,31 @@ llm = ChatGroq(
 )
 
 
-SYSTEM_PROMPT = """Você é um assistente virtual amigável de delivery de pizza. Seu papel é:
-1. Cumprimentar os clientes calorosamente
-2. Ajudá-los a navegar pelo cardápio de pizzas
-3. Responder perguntas sobre pizzas (ingredientes, preços)
-4. Adicionar pizzas ao carrinho
-5. Calcular o preço total
-6. Confirmar o pedido
+SYSTEM_PROMPT = """Você é um assistente virtual de delivery de pizza. Você DEVE SEMPRE usar as ferramentas disponíveis.
 
-Você tem acesso a ferramentas para consultar preços de pizzas e listar pizzas disponíveis.
-Seja conversacional, prestativo e guie os clientes pelo processo de pedido.
-Quando um cliente perguntar sobre uma pizza ou quiser pedir, use a ferramenta get_pizza_price.
-Sempre responda em português brasileiro.
+⚠️ REGRA CRÍTICA - VOCÊ NÃO SABE OS PREÇOS OU CARDÁPIO DE MEMÓRIA:
+- Você NÃO tem informações sobre pizzas ou preços em seu conhecimento
+- TODA informação sobre pizzas DEVE vir das ferramentas
+- NUNCA invente ou adivinhe preços, nomes de pizzas ou ingredientes
+- Se o cliente pedir o cardápio, você DEVE chamar list_all_pizzas() OBRIGATORIAMENTE
+
+FERRAMENTAS OBRIGATÓRIAS - USE SEMPRE:
+1. list_all_pizzas() - OBRIGATÓRIO quando:
+   - Cliente pergunta "quais pizzas", "cardápio", "menu", "o que tem"
+   - Cliente diz "oi", "olá" (mostre o cardápio como boas-vindas)
+
+2. get_pizza_price(pizza_name) - OBRIGATÓRIO quando:
+   - Cliente pergunta "quanto custa", "preço", "valor"
+
+3. add_to_cart(pizza_name, quantity) - OBRIGATÓRIO quando:
+   - Cliente diz "quero", "adiciona", "vou levar", "me vê", "coloca"
+
+⚠️ NUNCA RESPONDA SEM USAR FERRAMENTAS:
+- Não diga "temos Margherita, Calabresa..." → CHAME list_all_pizzas()
+- Não diga "a Margherita custa R$ 35" → CHAME get_pizza_price()
+- Não diga "adicionei ao carrinho" → CHAME add_to_cart()
+
+Sempre responda em português do Brasil. Seja educado, mas SEMPRE use as ferramentas para obter informações.
 """
 
 
@@ -100,14 +113,9 @@ async def llm_decision_node(state: ChatbotState, tools: list) -> Dict[str, Any]:
     for i, msg in enumerate(lc_messages):
         logger.info(f"Message {i}: {type(msg).__name__} - {msg.content[:100]}")
 
-    # Convert tools to format that Groq expects
-    from langchain_core.utils.function_calling import convert_to_openai_tool
-
-    tool_definitions = [convert_to_openai_tool(tool) for tool in tools]
-    logger.info(f"Tool definitions: {len(tool_definitions)} tools")
-
-    # Bind tools to LLM
-    llm_with_tools = llm.bind(tools=tool_definitions)
+    # Bind tools to LLM using bind_tools (proper method for Groq)
+    logger.info(f"Binding {len(tools)} tools to LLM")
+    llm_with_tools = llm.bind_tools(tools)
 
     # Get LLM response
     response = await llm_with_tools.ainvoke(lc_messages)
@@ -171,47 +179,53 @@ async def tool_execution_node(state: ChatbotState, tools: list) -> Dict[str, Any
     if not tool_calls_data:
         return state
 
-    tool_call = tool_calls_data[0]
-    tool_name = tool_call["name"]
-    tool_args = tool_call.get("args", {})
-    tool_call_id = tool_call.get("id", "")
+    # Execute ALL tool calls (support for parallel tool calling)
+    last_tool_result = ""
+    for tool_call in tool_calls_data:
+        tool_name = tool_call["name"]
+        tool_args = tool_call.get("args", {})
+        tool_call_id = tool_call.get("id", "")
 
-    logger.info(f"Executing tool: {tool_name} with args: {tool_args}")
+        logger.info(f"Executing tool: {tool_name} with args: {tool_args}")
 
-    # Find and execute the tool
-    tool_result = "Tool not found"
+        # Find and execute the tool
+        tool_result = "Tool not found"
 
-    for tool in tools:
-        if tool.name == tool_name:
-            try:
-                # Execute tool with proper arguments
-                result = await tool.ainvoke(tool_args)
-                tool_result = result
-                logger.info(f"Tool {tool_name} executed successfully: {tool_result}")
-            except Exception as e:
-                logger.error(f"Error executing tool {tool_name}: {e}")
-                tool_result = f"Erro ao executar ferramenta: {str(e)}"
-            break
+        for tool in tools:
+            if tool.name == tool_name:
+                try:
+                    # Execute tool with proper arguments
+                    result = await tool.ainvoke(tool_args)
+                    tool_result = result
+                    logger.info(f"Tool {tool_name} executed successfully: {tool_result}")
+                except Exception as e:
+                    logger.error(f"Error executing tool {tool_name}: {e}")
+                    tool_result = f"Erro ao executar ferramenta: {str(e)}"
+                break
 
-    # Add ToolMessage to conversation
-    messages.append({
-        "role": "tool",
-        "content": tool_result,
-        "tool_call_id": tool_call_id,
-        "name": tool_name
-    })
+        # Add ToolMessage to conversation for each tool call
+        messages.append({
+            "role": "tool",
+            "content": tool_result,
+            "tool_call_id": tool_call_id,
+            "name": tool_name
+        })
+        last_tool_result = tool_result
 
     return {
         "messages": messages,
-        "tool_result": tool_result,
+        "tool_result": last_tool_result,
         "pending_tool_call": ""
     }
 
 
 async def state_update_node(state: ChatbotState) -> Dict[str, Any]:
     """
-    Update cart state based on conversation.
-    Extracts pizza additions from messages and updates cart.
+    Update cart state based on add_to_cart tool results.
+
+    Parses the conversation messages looking for tool results from add_to_cart,
+    extracts the pizza information (name, price, quantity), and updates the
+    shopping cart accordingly.
 
     Args:
         state: Current chatbot state
@@ -219,18 +233,65 @@ async def state_update_node(state: ChatbotState) -> Dict[str, Any]:
     Returns:
         Updated state with cart items and total
     """
-    # This is a simplified version - in production, you'd parse the conversation
-    # more intelligently to extract orders
-
+    messages = state.get("messages", [])
     cart_items = state.get("cart_items", [])
     total = state.get("total", 0.0)
 
-    # TODO: Implement intelligent cart parsing from conversation
-    # For now, we just maintain the existing cart
+    # Track which tool messages we've already processed to avoid duplicates
+    # We'll use a state variable or just process new unprocessed messages
+    processed_count = state.get("processed_tool_count", 0)
+
+    # Count how many tool messages exist
+    tool_messages = [msg for msg in messages if msg.get("role") == "tool" and msg.get("name") == "add_to_cart"]
+    new_tool_messages = tool_messages[processed_count:]
+
+    # Process all NEW tool results from add_to_cart
+    for msg in new_tool_messages:
+        try:
+            # Parse the JSON result from add_to_cart tool
+            tool_result = json.loads(msg["content"])
+
+            if tool_result.get("action") == "add_to_cart":
+                pizza_name = tool_result["pizza_name"]
+                price = tool_result["price"]
+                quantity = tool_result["quantity"]
+
+                # Check if this pizza is already in the cart
+                existing_item = next(
+                    (item for item in cart_items if item["name"] == pizza_name),
+                    None
+                )
+
+                if existing_item:
+                    # Update quantity of existing item
+                    existing_item["quantity"] += quantity
+                    logger.info(f"Updated quantity for {pizza_name}: {existing_item['quantity']}")
+                else:
+                    # Add new item to cart
+                    cart_items.append({
+                        "name": pizza_name,
+                        "price": price,
+                        "quantity": quantity
+                    })
+                    logger.info(f"Added new item to cart: {quantity}x {pizza_name} @ R$ {price:.2f}")
+
+        except json.JSONDecodeError:
+            logger.warning(f"Could not parse add_to_cart result: {msg['content']}")
+            continue
+        except KeyError as e:
+            logger.error(f"Missing key in add_to_cart result: {e}")
+            continue
+
+    # Recalculate total after processing all items
+    total = sum(item["price"] * item["quantity"] for item in cart_items)
+    if new_tool_messages:
+        logger.info(f"Cart updated. Total items: {len(cart_items)}, Total: R$ {total:.2f}")
 
     return {
+        "messages": messages,
         "cart_items": cart_items,
-        "total": total
+        "total": total,
+        "processed_tool_count": len(tool_messages)
     }
 
 

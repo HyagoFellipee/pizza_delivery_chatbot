@@ -14,9 +14,11 @@ class ChatbotState(TypedDict):
         total: Total price of items in cart
         pending_tool_call: Name of tool waiting to be executed
         tool_result: Result from the last tool execution
+        processed_tool_count: Number of tool messages already processed
     """
     messages: List[Dict[str, str]]
     cart_items: List[Dict[str, Any]]
     total: float
     pending_tool_call: str
     tool_result: str
+    processed_tool_count: int

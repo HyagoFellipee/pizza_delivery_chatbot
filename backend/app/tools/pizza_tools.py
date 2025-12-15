@@ -5,6 +5,7 @@ from langchain.tools import tool
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Optional
 import logging
+import json
 
 from app.services.pizza_service import PizzaService
 
@@ -74,4 +75,41 @@ def create_pizza_tools(session: AsyncSession):
             logger.error(f"Error listing pizzas: {e}")
             return "Desculpe, encontrei um erro ao buscar a lista de pizzas."
 
-    return [get_pizza_price, list_all_pizzas]
+    @tool
+    async def add_to_cart(pizza_name: str, quantity: int = 1) -> str:
+        """
+        Add a pizza to the shopping cart.
+
+        Args:
+            pizza_name: The name of the pizza to add to cart (e.g., "Margherita", "Calabresa")
+            quantity: Number of pizzas to add (default: 1)
+
+        Returns:
+            JSON string with pizza info and confirmation
+        """
+        try:
+            pizza = await pizza_service.get_pizza_by_name(pizza_name)
+
+            if not pizza:
+                # Try to list available pizzas
+                all_pizzas = await pizza_service.get_all_pizzas()
+                pizza_names = [p.name for p in all_pizzas]
+                return f"Desculpe, não encontrei a pizza '{pizza_name}'. Pizzas disponíveis: {', '.join(pizza_names)}"
+
+            # Return structured data for state_update_node to parse
+            result = {
+                "action": "add_to_cart",
+                "pizza_name": pizza.name,
+                "price": pizza.price,
+                "quantity": quantity,
+                "subtotal": pizza.price * quantity
+            }
+
+            logger.info(f"add_to_cart called: {quantity}x {pizza.name} @ R$ {pizza.price:.2f}")
+            return json.dumps(result, ensure_ascii=False)
+
+        except Exception as e:
+            logger.error(f"Error in add_to_cart: {e}")
+            return f"Desculpe, encontrei um erro ao adicionar a pizza ao carrinho."
+
+    return [get_pizza_price, list_all_pizzas, add_to_cart]
