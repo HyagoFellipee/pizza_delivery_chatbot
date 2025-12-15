@@ -15,6 +15,7 @@ class ChatbotState(TypedDict):
         pending_tool_call: Name of tool waiting to be executed
         tool_result: Result from the last tool execution
         processed_tool_count: Number of tool messages already processed
+        step_count: Number of LLM invocations (prevents infinite loops)
     """
     messages: List[Dict[str, str]]
     cart_items: List[Dict[str, Any]]
@@ -22,3 +23,4 @@ class ChatbotState(TypedDict):
     pending_tool_call: str
     tool_result: str
     processed_tool_count: int
+    step_count: int

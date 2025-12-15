@@ -66,11 +66,19 @@ async def chat(
                     del msg_dict["tool_calls"]
                 clean_history.append(msg_dict)
 
+        # Cart items are persisted from frontend, count existing tool messages
+        # in history to avoid reprocessing them
+        existing_cart_tool_msgs = len([
+            msg for msg in clean_history
+            if msg.get("role") == "tool" and msg.get("name") == "add_to_cart"
+        ])
+
         initial_state = {
             "messages": clean_history,
             "cart_items": request.cart_items,
             "total": request.total,
-            "processed_tool_count": 0
+            "processed_tool_count": existing_cart_tool_msgs,  # Count existing to avoid duplication
+            "step_count": 0  # Initialize step counter for recursion protection
         }
 
         # Add user message

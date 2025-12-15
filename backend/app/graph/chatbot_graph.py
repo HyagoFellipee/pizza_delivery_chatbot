@@ -54,6 +54,12 @@ def create_chatbot_graph(session: AsyncSession):
     def should_use_tool(state: ChatbotState) -> str:
         """Decide whether to execute a tool or proceed"""
         messages = state.get("messages", [])
+        step_count = state.get("step_count", 0)
+
+        # Safety: prevent infinite loops (max 10 steps per request)
+        if step_count >= 10:
+            logger.warning(f"Max step count reached: {step_count}")
+            return "state_update"
 
         # Check if last message has tool_calls
         if messages:
