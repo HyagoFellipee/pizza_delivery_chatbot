@@ -1,7 +1,7 @@
 /**
  * ChatContainer component - Main container for the chat interface
  */
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import ChatMessage from './ChatMessage'
 import ChatInput from './ChatInput'
 import { Message, CartItem } from '../types/chat'
@@ -13,15 +13,8 @@ export default function ChatContainer() {
   const [total, setTotal] = useState<number>(0)
   const [isLoading, setIsLoading] = useState<boolean>(false)
 
-  // Initial greeting
-  useEffect(() => {
-    const initialMessage: Message = {
-      role: 'assistant',
-      content: 'Olá! Bem-vindo ao nosso serviço de delivery de pizza! Como posso ajudá-lo hoje?',
-      timestamp: new Date(),
-    }
-    setMessages([initialMessage])
-  }, [])
+  // No initial greeting - user starts the conversation
+  // This follows the specification flow where user greets first
 
   const handleSendMessage = async (content: string) => {
     // Add user message to UI

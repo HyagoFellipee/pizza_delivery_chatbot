@@ -55,8 +55,19 @@ async def chat(
         graph = create_chatbot_graph(session)
 
         # Prepare initial state with cart from request
+        # Filter out any tool-related messages from frontend (they shouldn't be sent, but filter just in case)
+        clean_history = []
+        for msg in request.conversation_history:
+            msg_dict = msg.dict()
+            # Only keep user and assistant messages, remove tool_calls from assistant messages
+            if msg_dict.get("role") in ["user", "assistant"]:
+                # Remove tool_calls if present (assistant messages from previous interactions)
+                if "tool_calls" in msg_dict:
+                    del msg_dict["tool_calls"]
+                clean_history.append(msg_dict)
+
         initial_state = {
-            "messages": [msg.dict() for msg in request.conversation_history],
+            "messages": clean_history,
             "cart_items": request.cart_items,
             "total": request.total,
             "processed_tool_count": 0
@@ -73,28 +84,17 @@ async def chat(
 
         logger.info(f"Final state messages: {final_state.get('messages', [])}")
 
-        # Extract response - combine tool results and final assistant message
+        # Extract response - get ONLY the last assistant message
+        # The LLM already incorporates tool results into its response
         messages = final_state.get("messages", [])
-        response_parts = []
 
-        # Get messages after the last user message
-        for i, msg in enumerate(messages):
-            if msg.get("role") == "user" and msg["content"] == request.message:
-                # Found the user message, get everything after it
-                subsequent_messages = messages[i+1:]
-                for subsequent in subsequent_messages:
-                    if subsequent.get("role") == "tool":
-                        # Skip add_to_cart tool results (they're JSON for state_update_node)
-                        # Include other tool results (like pizza prices, lists)
-                        tool_name = subsequent.get("name", "")
-                        if tool_name != "add_to_cart":
-                            response_parts.append(subsequent["content"])
-                    elif subsequent.get("role") == "assistant" and subsequent.get("content"):
-                        # Include final assistant response
-                        response_parts.append(subsequent["content"])
+        response_content = "Desculpe, não consegui processar sua mensagem."
+
+        # Find last assistant message with content
+        for msg in reversed(messages):
+            if msg.get("role") == "assistant" and msg.get("content"):
+                response_content = msg["content"]
                 break
-
-        response_content = "\n\n".join(response_parts) if response_parts else "Desculpe, não consegui processar sua mensagem."
 
         logger.info(f"Response content: {response_content}")
 

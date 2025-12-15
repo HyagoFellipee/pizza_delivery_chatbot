@@ -22,7 +22,7 @@ export default function ChatMessage({ message }: ChatMessageProps) {
         <p className="text-sm whitespace-pre-wrap">{message.content}</p>
         {message.timestamp && (
           <p className="text-xs mt-1 opacity-70">
-            {message.timestamp.toLocaleTimeString()}
+            {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
           </p>
         )}
       </div>
